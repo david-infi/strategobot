@@ -91,14 +91,19 @@ impl GameCoordinator {
     }
 
     pub fn play(&mut self) -> Outcome {
+        let mut enemies: Vec<(Position, Option<Rank>)> = Vec::new();
+        enemies.reserve(self.starting_ranks.len());
+
         while self.turn_count < self.max_turn_count {
             let current_player = self.current_player;
             let other_player = (current_player + 1) % 2;
 
-            let enemies = self.pieces[other_player]
-                .iter()
-                .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank)))
-                .collect::<Vec<_>>();
+            enemies.clear();
+            enemies.extend(
+                self.pieces[other_player]
+                    .iter()
+                    .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank))),
+            );
 
             let enemy_bitmap = self.bitmaps[other_player].reversed();
 
@@ -196,14 +201,15 @@ impl GameCoordinator {
 
                 let (piece_dies, enemy_dies) = battle_casualties(&enemy_rank, &own_rank);
 
-                // Regardless, of whether the piece died or not, it is now known to the other
+                // Regardless, of whether the piece dies or not, it is now known to the other
                 // player.
                 self.pieces[current_player][piece_idx].is_revealed = true;
                 self.pieces[other_player][enemy_idx].is_revealed = true;
 
                 if piece_dies {
                     self.pieces[current_player].swap_remove(piece_idx);
-                    // Updating the bitmaps and position of the piece happens later.
+                    // Updating the bitmaps and position of this piece happens later, because this
+                    // always needs to happen even if there is no battle.
                 }
 
                 if enemy_dies {
@@ -228,10 +234,12 @@ impl GameCoordinator {
             }
 
             // Notify the enemy bot of the move.
-            let enemies = self.pieces[current_player]
-                .iter()
-                .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank)))
-                .collect::<Vec<_>>();
+            enemies.clear();
+            enemies.extend(
+                self.pieces[current_player]
+                    .iter()
+                    .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank))),
+            );
 
             let enemy_bitmap = self.bitmaps[current_player].reversed();
 

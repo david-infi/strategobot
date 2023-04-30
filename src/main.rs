@@ -4,7 +4,7 @@ mod game_coordinator;
 
 use bot::RandoBot;
 use game::Rank;
-use game_coordinator::GameCoordinator;
+use game_coordinator::{GameCoordinator, Outcome};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_xoshiro::SplitMix64;
 use std::time::Instant;
@@ -52,16 +52,42 @@ fn main() {
 
     let mut seeder = SplitMix64::seed_from_u64(5498709864);
 
-    for _ in 0..1_000 {
+    let mut outcomes = Vec::new();
+
+    for _ in 0..10_000 {
         let mut game_coordinator = GameCoordinator::new(
             Box::new(RandoBot::new(seeder.next_u64())),
             Box::new(RandoBot::new(seeder.next_u64())),
             &starting_ranks,
-            100_000,
+            1000,
         );
 
-        game_coordinator.play();
+        outcomes.push(game_coordinator.play());
     }
+
+    /*
+    let mut timeouts: usize = 0;
+    let mut wins = [0, 0];
+    let mut total_turns = 0usize;
+
+    for outcome in outcomes.iter() {
+        match outcome {
+            Outcome::Win { winner, turn_count } => {
+                wins[*winner] += 1;
+                total_turns += turn_count;
+            }
+            Outcome::ReachedMaxTurnCount(_) => timeouts += 1,
+        }
+    }
+
+    println!(
+        "Total games: {} Timeouts: {timeouts}, Wins: {} | {} Average turns: {}",
+        outcomes.len(),
+        wins[0],
+        wins[1],
+        total_turns as f64 / 10_000.0
+    );
+    */
 
     let run_time = start_time.elapsed();
 
