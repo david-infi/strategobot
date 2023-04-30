@@ -1,0 +1,7 @@
+# By default let Git choose whatever line endings it thinks are best
+* text=auto
+
+# I prefer Linux line endings for code, even on Windows.
+# Here I set all the files containing text that I want to have Linux line endings.
+*.rs text eol=lf 
+Cargo.toml text eol=lf

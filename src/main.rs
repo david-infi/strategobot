@@ -60,7 +60,7 @@ fn main() {
             100_000,
         );
 
-        println!("{:?}", game_coordinator.play());
+        game_coordinator.play();
     }
 
     let run_time = start_time.elapsed();

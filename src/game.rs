@@ -1,7 +1,6 @@
 use std::arch::x86_64::{
-    __m128i, _mm_and_si128, _mm_bslli_si128, _mm_cmpeq_epi16, _mm_or_si128, _mm_set1_epi8,
-    _mm_set_epi8, _mm_setr_epi8, _mm_setzero_si128, _mm_shuffle_epi8, _mm_slli_epi16,
-    _mm_srli_epi16, _mm_test_all_ones, _mm_bsrli_si128, _mm_slli_epi64, _mm_srli_si128,
+    __m128i, _mm_and_si128, _mm_cmpeq_epi16, _mm_or_si128, _mm_set1_epi8, _mm_setr_epi8,
+    _mm_setzero_si128, _mm_shuffle_epi8, _mm_slli_epi16, _mm_srli_epi16, _mm_test_all_ones,
 };
 use std::cmp::Ordering;
 
@@ -34,15 +33,15 @@ unsafe fn m128i_reverse_bits(x: __m128i) -> __m128i {
 }
 
 unsafe fn m128i_as_slice_u64(x: &__m128i) -> &[u64] {
-    unsafe { std::slice::from_raw_parts(x as *const __m128i as *const u64, 2) }
+    std::slice::from_raw_parts(x as *const __m128i as *const u64, 2)
 }
 
 unsafe fn m128i_as_slice_u8(x: &__m128i) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(x as *const __m128i as *const u8, 16) }
+    std::slice::from_raw_parts(x as *const __m128i as *const u8, 16)
 }
 
 unsafe fn m128i_as_mut_slice_u8(x: &mut __m128i) -> &mut [u8] {
-    unsafe { std::slice::from_raw_parts_mut(x as *mut __m128i as *mut u8, 16) }
+    std::slice::from_raw_parts_mut(x as *mut __m128i as *mut u8, 16)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -52,9 +51,7 @@ pub struct BoardBitmap {
 
 impl PartialEq for BoardBitmap {
     fn eq(&self, other: &Self) -> bool {
-        unsafe {
-            _mm_test_all_ones(_mm_cmpeq_epi16(self.data, other.data)) == 1
-        }
+        unsafe { _mm_test_all_ones(_mm_cmpeq_epi16(self.data, other.data)) == 1 }
     }
 }
 
@@ -75,7 +72,7 @@ impl BoardBitmap {
 
         let i = idx / 8;
         let j = idx % 8;
-        
+
         let val_mask = (val as u8) << j;
         let clear_mask = !(1u8 << j);
 
@@ -92,7 +89,7 @@ impl BoardBitmap {
 
         let i = idx / 8;
         let j = idx % 8;
-        
+
         let val_mask = 1u8 << j;
 
         let data = unsafe { m128i_as_slice_u8(&self.data) };
@@ -102,7 +99,7 @@ impl BoardBitmap {
 
     pub fn reversed(&self) -> BoardBitmap {
         BoardBitmap {
-            data: unsafe { m128i_reverse_bits(self.data) }
+            data: unsafe { m128i_reverse_bits(self.data) },
         }
     }
 }
@@ -208,13 +205,6 @@ impl Position {
 
     pub fn to_bit_index(self) -> usize {
         self.x as usize + 10 * self.y as usize
-    }
-
-    pub fn from_bit_index(idx: usize) -> Position {
-        Position {
-            x: (idx % 10) as u8,
-            y: (idx / 10) as u8,
-        }
     }
 }
 
