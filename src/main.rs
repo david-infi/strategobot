@@ -7,6 +7,7 @@ use game::Rank;
 use game_coordinator::GameCoordinator;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_xoshiro::SplitMix64;
+use std::time::Instant;
 
 fn reservoir_sample<T, I: Iterator<Item = T>, R: Rng>(
     rng: &mut R,
@@ -47,9 +48,11 @@ fn main() {
         Rank::Flag,
     ];
 
+    let start_time = Instant::now();
+
     let mut seeder = SplitMix64::seed_from_u64(5498709864);
 
-    for _ in 0..1000 {
+    for _ in 0..1_000 {
         let mut game_coordinator = GameCoordinator::new(
             Box::new(RandoBot::new(seeder.next_u64())),
             Box::new(RandoBot::new(seeder.next_u64())),
@@ -59,4 +62,8 @@ fn main() {
 
         println!("{:?}", game_coordinator.play());
     }
+
+    let run_time = start_time.elapsed();
+
+    println!("{} seconds", run_time.as_secs_f32());
 }

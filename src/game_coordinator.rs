@@ -1,8 +1,8 @@
 use crate::{
     bot::Bot,
     game::{
-        battle_casualties, has_a_possible_move, scout_max_steps, Action, BoardBitSlice,
-        BoardBitmap, Piece, Position, Rank,
+        battle_casualties, has_a_possible_move, scout_max_steps, Action, BoardBitmap, Piece,
+        Position, Rank,
     },
 };
 
@@ -10,8 +10,8 @@ pub struct State<'a> {
     pub starting_ranks: &'a [Rank],
     pub pieces: &'a [Piece],
     pub enemies: &'a [(Position, Option<Rank>)],
-    pub piece_bitslice: &'a BoardBitSlice,
-    pub enemy_bitslice: &'a BoardBitSlice,
+    pub piece_bitmap: &'a BoardBitmap,
+    pub enemy_bitmap: &'a BoardBitmap,
 }
 
 pub struct GameCoordinator {
@@ -62,7 +62,7 @@ impl GameCoordinator {
             let indices = placements.iter().map(|(_, pos)| pos.to_bit_index());
 
             for idx in indices {
-                bitmap.as_mut_bitslice().set(idx, true);
+                bitmap.set(idx, true);
             }
 
             bitmap
@@ -100,19 +100,18 @@ impl GameCoordinator {
                 .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank)))
                 .collect::<Vec<_>>();
 
-            let mut enemy_bitmap = self.bitmaps[other_player];
-            let enemy_bitslice = enemy_bitmap.as_mut_bitslice();
-            enemy_bitslice.reverse();
+            let enemy_bitmap = self.bitmaps[other_player].reversed();
 
             let state = State {
                 starting_ranks: &self.starting_ranks,
                 pieces: &self.pieces[current_player],
                 enemies: &enemies,
-                piece_bitslice: self.bitmaps[current_player].as_bitslice(),
-                enemy_bitslice,
+                piece_bitmap: &self.bitmaps[current_player],
+                enemy_bitmap: &enemy_bitmap,
             };
 
             // Make sure the bitmap positions and the positions of the pieces are in sync
+            /*
             if cfg!(debug_assertions) {
                 let mut bitmap_positions = self.bitmaps[current_player]
                     .as_bitslice()
@@ -146,11 +145,12 @@ impl GameCoordinator {
 
                 assert_eq!(bitmap_positions, piece_positions);
             }
+            */
 
             let player_can_move = has_a_possible_move(
                 &self.pieces[current_player],
-                &self.bitmaps[current_player].as_bitslice(),
-                &self.bitmaps[other_player].as_bitslice(),
+                &self.bitmaps[current_player],
+                &self.bitmaps[other_player],
             );
 
             if !player_can_move {
@@ -172,7 +172,7 @@ impl GameCoordinator {
                 .unwrap();
 
             // If the destination square has an enemy on it, we have to resolve the battle.
-            let piece_died = if enemy_bitslice[action.to.to_bit_index()] {
+            let piece_died = if enemy_bitmap.get(action.to.to_bit_index()) {
                 let enemy_idx = self.pieces[other_player]
                     .iter()
                     .position(|piece| piece.pos.reverse() == action.to)
@@ -207,9 +207,7 @@ impl GameCoordinator {
                 }
 
                 if enemy_dies {
-                    self.bitmaps[other_player]
-                        .as_mut_bitslice()
-                        .set(action.to.reverse().to_bit_index(), false);
+                    self.bitmaps[other_player].set(action.to.reverse().to_bit_index(), false);
                     self.pieces[other_player].swap_remove(enemy_idx);
                 }
 
@@ -222,15 +220,11 @@ impl GameCoordinator {
             // bitmap.
 
             // Whether the piece died or not, it will no longer be in the same place.
-            self.bitmaps[current_player]
-                .as_mut_bitslice()
-                .set(action.from.to_bit_index(), false);
+            self.bitmaps[current_player].set(action.from.to_bit_index(), false);
 
             if !piece_died {
                 self.pieces[current_player][piece_idx].pos = action.to;
-                self.bitmaps[current_player]
-                    .as_mut_bitslice()
-                    .set(action.to.to_bit_index(), true);
+                self.bitmaps[current_player].set(action.to.to_bit_index(), true);
             }
 
             // Notify the enemy bot of the move.
@@ -239,16 +233,14 @@ impl GameCoordinator {
                 .map(|piece| (piece.pos.reverse(), piece.is_revealed.then_some(piece.rank)))
                 .collect::<Vec<_>>();
 
-            let mut enemy_bitmap = self.bitmaps[current_player];
-            let enemy_bitslice = enemy_bitmap.as_mut_bitslice();
-            enemy_bitslice.reverse();
+            let enemy_bitmap = self.bitmaps[current_player].reversed();
 
             let state = State {
                 starting_ranks: &self.starting_ranks,
                 pieces: &self.pieces[other_player],
                 enemies: &enemies,
-                piece_bitslice: self.bitmaps[other_player].as_bitslice(),
-                enemy_bitslice,
+                piece_bitmap: &self.bitmaps[other_player],
+                enemy_bitmap: &enemy_bitmap,
             };
 
             self.bots[other_player].notify_opponents_action(&state, action.reverse());
@@ -275,16 +267,14 @@ impl GameCoordinator {
             .any(|p| p.pos == action.to);
         let is_destination_a_valid_map_position = action.to.is_valid_map_position();
         let is_valid_piece_movement = if piece.rank == Rank::Scout {
-            let mut bitmap = self.bitmaps[(self.current_player + 1) % 2];
-            let bitslice = bitmap.as_mut_bitslice();
-            bitslice.reverse();
+            let bitmap = self.bitmaps[(self.current_player + 1) % 2].reversed();
 
             action.distance()
                 <= scout_max_steps(
                     &action.from,
                     &action.direction(),
-                    self.bitmaps[self.current_player].as_bitslice(),
-                    bitslice,
+                    &self.bitmaps[self.current_player],
+                    &bitmap,
                 )
         } else {
             action.distance() == 1

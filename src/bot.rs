@@ -1,4 +1,4 @@
-use crate::game::{all_possible_moves, Action, Piece, Position, Rank};
+use crate::game::{all_possible_moves, Action, Position, Rank};
 use crate::game_coordinator::State;
 use crate::reservoir_sample;
 use rand::{Rng, SeedableRng};
@@ -20,12 +20,14 @@ pub trait Bot {
 
 pub struct RandoBot {
     rng: Xoshiro256StarStar,
+    move_buffer: Vec<Action>,
 }
 
 impl RandoBot {
     pub fn new(seed: u64) -> RandoBot {
         RandoBot {
             rng: Xoshiro256StarStar::seed_from_u64(seed),
+            move_buffer: Vec::new(),
         }
     }
 }
@@ -46,7 +48,14 @@ impl Bot for RandoBot {
     fn get_action(&mut self, state: &State) -> Action {
         // There is guaranteed at least one move, because the game coordinator checks for this
         // before it requests a move.
-        let moves = all_possible_moves(state.pieces, state.piece_bitslice, state.enemy_bitslice);
-        moves[self.rng.gen_range(0..moves.len())]
+        self.move_buffer.clear();
+        all_possible_moves(
+            state.pieces,
+            state.piece_bitmap,
+            state.enemy_bitmap,
+            &mut self.move_buffer,
+        );
+        let idx = self.rng.gen_range(0..self.move_buffer.len());
+        self.move_buffer[idx]
     }
 }
