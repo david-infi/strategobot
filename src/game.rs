@@ -132,6 +132,8 @@ pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
     use Rank::*;
 
     match (*defender, *attacker) {
+        // Capturing the flag is checked before this function is called, and a bomb or flag cannot
+        // attack, so this should never happen.
         (Flag, _) | (_, Bomb | Flag) => unreachable!(),
         (Marshal, Spy) | (Bomb, Miner) => (true, false),
         (Bomb, _) => (false, true),
@@ -205,6 +207,10 @@ impl Position {
 
     pub fn to_bit_index(self) -> usize {
         self.x as usize + 10 * self.y as usize
+    }
+
+    pub fn manhattan_distance(&self, other: &Position) -> u8 {
+        self.x.abs_diff(other.x) + self.y.abs_diff(other.y)
     }
 }
 
