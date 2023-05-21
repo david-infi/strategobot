@@ -5,14 +5,13 @@ mod game;
 mod game_coordinator;
 mod reservoir_sample;
 
-use bot::{AgressoBot, Bot, RandoBot};
-use game::{State};
+use bot::{AgressoBot, RandoBot};
+
 use game_coordinator::{GameCoordinator, Outcome};
 use json_runner::run_bot;
 
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{RngCore, SeedableRng};
 use rand_xoshiro::SplitMix64;
-use rayon::prelude::*;
 use std::time::Instant;
 
 fn main() {
@@ -68,7 +67,7 @@ fn main3() {
             )
         };
 
-        let outcome = game_coordinator.play();
+        let outcome = game_coordinator.play().expect("");
         outcomes.push(outcome);
     }
 

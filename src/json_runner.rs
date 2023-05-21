@@ -3,7 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::io::Write;
 
 use crate::bot::{Bot, BotOrienter};
-use crate::game::{Action, Position, Rank, State, Turn};
+use crate::game::{Action, Position, Rank, State};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]

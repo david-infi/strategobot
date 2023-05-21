@@ -100,10 +100,6 @@ fn m128i_reverse_bits(x: __m128i) -> __m128i {
     m128i_reverse_epi8(reverse_byte_order_m128i(x))
 }
 
-fn m128i_as_slice_u64(x: &__m128i) -> &[u64] {
-    unsafe { std::slice::from_raw_parts(x as *const __m128i as *const u64, 2) }
-}
-
 fn m128i_as_slice_u8(x: &__m128i) -> &[u8] {
     unsafe { std::slice::from_raw_parts(x as *const __m128i as *const u8, 16) }
 }
@@ -116,64 +112,9 @@ fn m128i_as_mut_slice_u8(x: &mut __m128i) -> &mut [u8] {
 #[cfg(all(target_arch = "x86_64", target_feature = "sse4.1"))]
 mod tests {
     use super::*;
-
-    #[rustfmt::skip]
-    #[test]
-    fn test_board_prototype() {
-        const OFFSET: usize = (128 - 100) / 2;
-
-        fn set(bitmap: &mut __m128i, idx: usize, val: bool) {
-            assert!(idx < 100);
-
-            let idx = idx + OFFSET;
-
-            let i = idx / 8;
-            let j = idx % 8;
-            
-            let val_mask = (val as u8) << j;
-            let clear_mask = !(1u8 << j);
-
-            let data = unsafe { m128i_as_mut_slice_u8(bitmap) };
-
-            data[i] &= clear_mask;
-            data[i] |= val_mask;
-        }
-
-        fn get(bitmap: &__m128i, idx: usize) -> bool {
-            assert!(idx < 100);
-
-            let idx = idx + OFFSET;
-
-            let i = idx / 8;
-            let j = idx % 8;
-            
-            let val_mask = 1u8 << j;
-
-            let data = unsafe { m128i_as_slice_u8(bitmap) };
-
-            data[i] & val_mask != 0
-        }
-
-        unsafe {
-            let mut x = _mm_setzero_si128();
-
-            for i in 0..50 {
-                set(&mut x, i * 2, true);
-            }
-
-            for i in 0..50 {
-                assert!(!get(&x, i * 2 + 1));
-                assert!(get(&x, i * 2));
-            }
-
-            let x = m128i_reverse_bits(x);
-
-            for i in 0..50 {
-                assert!(get(&x, i * 2 + 1));
-                assert!(!get(&x, i * 2));
-            }
-        }
-    }
+    use std::arch::x86_64::{
+        _mm_set_epi8, _mm_bslli_si128,
+    };
 
     #[rustfmt::skip]
     #[test]
@@ -201,9 +142,11 @@ mod tests {
             let d = std::slice::from_raw_parts(&expected_reverse as *const __m128i as *const u64, 2);
 
             assert_eq!(c, d);
-
-
         }
+    }
+
+    fn m128i_as_slice_u64(x: &__m128i) -> &[u64] {
+        unsafe { std::slice::from_raw_parts(x as *const __m128i as *const u64, 2) }
     }
 
     #[rustfmt::skip]

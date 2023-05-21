@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+
 
 use crate::boardbitmap::BoardBitmap;
 use crate::game::{Piece, Rank, Direction, Position, Action, ALL_DIRECTIONS};
-use crate::json_runner::{MoveCommandJson, PositionJson};
+
 
 pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
     use Rank::*;

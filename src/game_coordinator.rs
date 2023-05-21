@@ -1,8 +1,9 @@
 use crate::{
     bot::{Bot, BotOrienter},
-    game::{Rank, Battle, Piece, State, Turn},
+    game::{Rank, Battle, Piece, State, Turn, validate_action},
     game::logic::{battle_casualties, has_a_possible_move},
 };
+use anyhow::Result;
 
 pub struct GameCoordinator {
     bots: [Box<dyn Bot>; 2],
@@ -30,7 +31,7 @@ impl GameCoordinator {
         }
     }
 
-    pub fn play(&mut self) -> Outcome {
+    pub fn play(&mut self) -> Result<Outcome> {
         while self.state.turn_count < self.max_turn_count {
             let current_player_id = self.state.current_player_id;
             let other_player_id = (current_player_id + 1) % 2;
@@ -43,10 +44,10 @@ impl GameCoordinator {
             );
 
             if !player_can_move {
-                return Outcome::Win {
+                return Ok(Outcome::Win {
                     winner: other_player_id,
                     turn_count: self.state.turn_count,
-                };
+                });
             }
 
             let action = {
@@ -65,7 +66,9 @@ impl GameCoordinator {
                 self.bots[current_player_id].get_action(obscured_state)
             };
 
-            debug_assert_eq!(self.state.find_action_error(&action), None);
+            if cfg!(debug_assertions) {
+                validate_action(&self.state, &action)?;
+            }
 
             let has_enemy_at_destination =
                 self.state.bitmaps[other_player_id].get(action.to.to_bit_index());
@@ -81,10 +84,10 @@ impl GameCoordinator {
 
                 // If the enemy piece is the flag, the game is over.
                 if *enemy_rank == Rank::Flag {
-                    return Outcome::Win {
+                    return Ok(Outcome::Win {
                         winner: current_player_id,
                         turn_count: self.state.turn_count + 1,
-                    };
+                    });
                 }
 
                 // Find the piece we are trying to move to the destination square.
@@ -98,7 +101,7 @@ impl GameCoordinator {
                 let (enemy_died, friend_died) = battle_casualties(enemy_rank, friend_rank);
 
                 // The swap is a dirty trick to make sure that the rank of player 0 is at index 0.
-                // If the current player is 0 then the swap is a noop of. If the current player is
+                // If the current player is 0 then the swap is a noop. If the current player is
                 // 1 (meaning the order is incorrect), then the elements are swapped.
                 let mut ranks = [*friend_rank, *enemy_rank];
                 ranks.as_mut_slice().swap(0, current_player_id);
@@ -118,6 +121,6 @@ impl GameCoordinator {
             });
         }
 
-        Outcome::ReachedMaxTurnCount(self.max_turn_count)
+        Ok(Outcome::ReachedMaxTurnCount(self.max_turn_count))
     }
 }

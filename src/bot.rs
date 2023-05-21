@@ -1,6 +1,6 @@
-use crate::boardbitmap::BoardBitmap;
+
 use crate::game::{
-    logic::{all_possible_moves, scout_max_steps}, Piece, State, Action, Position, Rank, STARTING_RANKS};
+    logic::{all_possible_moves}, Piece, State, Action, Position, Rank, STARTING_RANKS};
 use crate::reservoir_sample::{reservoir_sample, reservoir_sample_one};
 
 use rand::{Rng, SeedableRng};

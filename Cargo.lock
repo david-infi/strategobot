@@ -730,6 +730,7 @@ dependencies = [
  "serde_json",
  "strum",
  "tch",
+ "thiserror",
  "tinyvec",
 ]
 

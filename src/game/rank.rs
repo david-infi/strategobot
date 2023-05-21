@@ -35,22 +35,7 @@ impl Rank {
         !matches!(&self, Rank::Flag | Rank::Bomb)
     }
 
-    pub fn from_str(s: &str) -> Option<Rank> {
-        let rank = match s {
-            "Spy" => Rank::Spy,
-            "Scout" => Rank::Scout,
-            "Miner" => Rank::Miner,
-            "General" => Rank::General,
-            "Marshal" => Rank::Marshal,
-            "Bomb" => Rank::Bomb,
-            "Flag" => Rank::Flag,
-            _ => return None,
-        };
-
-        Some(rank)
-    }
-
-    pub fn to_str(self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         use Rank::*;
         match &self {
             Spy => "Spy",
@@ -60,7 +45,7 @@ impl Rank {
             Marshal => "Marshal",
             Bomb => "Bomb",
             Flag => "Flag",
-            _ => unreachable!(),
+            _ => panic!(),
         }
     }
 }
@@ -69,6 +54,17 @@ impl TryFrom<&str> for Rank {
     type Error = &'static str;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Rank::from_str(s).ok_or("String is not a Rank")
+        let rank = match s {
+            "Spy" => Rank::Spy,
+            "Scout" => Rank::Scout,
+            "Miner" => Rank::Miner,
+            "General" => Rank::General,
+            "Marshal" => Rank::Marshal,
+            "Bomb" => Rank::Bomb,
+            "Flag" => Rank::Flag,
+            _ => return Err("String is not a Rank"),
+        };
+
+        Ok(rank)
     }
 }
