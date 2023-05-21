@@ -1,5 +1,6 @@
 use crate::boardbitmap::BoardBitmap;
-use crate::game::{logic::scout_max_steps, Action, Position, Rank};
+use crate::game::logic::scout_max_steps_with_stepper;
+use crate::game::{Action, Position, Rank};
 use crate::json_runner::{BattleResultJson, GameStateJson, TileJson};
 use std::fmt;
 use std::fmt::Display;
@@ -138,8 +139,7 @@ impl State {
             if let Some(id) = owner {
                 let rank = rank
                     .as_ref()
-                    .map(|s| Rank::try_from(s.as_str()).ok())
-                    .flatten()
+                    .and_then(|s| Rank::try_from(s.as_str()).ok())
                     .unwrap_or(Rank::Unknown);
 
                 res.pieces[*id].push(Piece {
@@ -243,9 +243,9 @@ pub fn validate_action(state: &State, action: &Action) -> Result<(), ActionError
 
     let is_valid_movement_distance = if friend.rank == Rank::Scout {
         action.distance()
-            <= scout_max_steps(
+            <= scout_max_steps_with_stepper(
+                action.direction().to_stepper(),
                 &action.from,
-                &action.direction(),
                 &state.bitmaps[state.current_player_id],
                 &state.bitmaps[(state.current_player_id + 1) % 2],
             )

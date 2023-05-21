@@ -1,6 +1,6 @@
 use crate::{
     boardbitmap::BoardBitmap,
-    game::{Action, Direction, Piece, Position, Rank, ALL_DIRECTION_STEPPERS},
+    game::{Action, Piece, Position, Rank, ALL_DIRECTION_STEPPERS},
 };
 
 pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
@@ -39,41 +39,6 @@ pub fn scout_max_steps_with_stepper<F: Fn(&Position) -> Position>(
         }
 
         to = stepper(&to);
-    }
-
-    steps
-}
-
-pub fn scout_max_steps(
-    pos: &Position,
-    direction: &Direction,
-    friend_bitmap: &BoardBitmap,
-    enemy_bitmap: &BoardBitmap,
-) -> usize {
-    use Direction::*;
-
-    let f = match direction {
-        Up => Position::up,
-        Right => Position::right,
-        Down => Position::down,
-        Left => Position::left,
-    };
-
-    let mut steps = 0;
-    let mut to = f(pos);
-
-    while to.is_valid_map_position() {
-        if friend_bitmap.get(to.to_bit_index()) {
-            break;
-        }
-
-        steps += 1;
-
-        if enemy_bitmap.get(to.to_bit_index()) {
-            break;
-        }
-
-        to = f(&to);
     }
 
     steps
