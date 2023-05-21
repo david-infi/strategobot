@@ -1,7 +1,8 @@
-use crate::game::{
-    logic::all_possible_moves, Action, Piece, Position, Rank, State, STARTING_RANKS,
+use crate::{
+    game::logic::all_possible_moves,
+    game::{Action, Piece, Position, Rank, State, STARTING_RANKS},
+    reservoir_sample::reservoir_sample,
 };
-use crate::reservoir_sample::{reservoir_sample};
 
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256StarStar;
@@ -75,7 +76,7 @@ fn random_action<R: Rng>(rng: &mut R, state: State, action_buffer: &mut Vec<Acti
         action_buffer,
     );
 
-    *pick_randomly(rng, &action_buffer)
+    *pick_randomly(rng, action_buffer)
 }
 
 fn pick_randomly<'a, R: Rng, T>(rng: &mut R, elems: &'a [T]) -> &'a T {
@@ -103,9 +104,7 @@ impl Bot for RandoBot {
     }
 
     fn get_action(&mut self, state: State) -> Action {
-        // There is guaranteed to be at least one possible move, because the game coordinator
-        // checks for the existence of one before it requests an action.
-
+        // There is guaranteed to be at least one possible move, otherwise the game would be over.
         random_action(&mut self.rng, state, &mut self.move_buffer)
     }
 }

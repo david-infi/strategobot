@@ -16,13 +16,6 @@ pub enum Direction {
     Left,
 }
 
-const ALL_DIRECTIONS: [Direction; 4] = [
-    Direction::Up,
-    Direction::Right,
-    Direction::Down,
-    Direction::Left,
-];
-
 const ALL_DIRECTION_STEPPERS: [fn(&Position) -> Position; 4] = [
     Position::up,
     Position::right,
