@@ -1,7 +1,7 @@
 use crate::game::{
     logic::all_possible_moves, Action, Piece, Position, Rank, State, STARTING_RANKS,
 };
-use crate::reservoir_sample::{reservoir_sample, reservoir_sample_one};
+use crate::reservoir_sample::{reservoir_sample};
 
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256StarStar;
@@ -75,9 +75,12 @@ fn random_action<R: Rng>(rng: &mut R, state: State, action_buffer: &mut Vec<Acti
         action_buffer,
     );
 
-    let idx = rng.gen_range(0..action_buffer.len());
+    *pick_randomly(rng, &action_buffer)
+}
 
-    action_buffer[idx]
+fn pick_randomly<'a, R: Rng, T>(rng: &mut R, elems: &'a [T]) -> &'a T {
+    let idx = rng.gen_range(0..elems.len());
+    &elems[idx]
 }
 
 pub struct RandoBot {
@@ -110,7 +113,6 @@ impl Bot for RandoBot {
 pub struct AgressoBot {
     rng: Xoshiro256StarStar,
     action_buffer: Vec<Action>,
-    score_buffer: Vec<u8>,
 }
 
 impl AgressoBot {
@@ -118,7 +120,6 @@ impl AgressoBot {
         AgressoBot {
             rng: Xoshiro256StarStar::seed_from_u64(seed),
             action_buffer: Vec::new(),
-            score_buffer: Vec::new(),
         }
     }
 }
@@ -130,8 +131,6 @@ impl Bot for AgressoBot {
 
     fn get_action(&mut self, state: State) -> Action {
         self.action_buffer.clear();
-        self.score_buffer.clear();
-
         all_possible_moves(
             &state.pieces[0],
             &state.bitmaps[0],
@@ -139,26 +138,34 @@ impl Bot for AgressoBot {
             &mut self.action_buffer,
         );
 
-        let action_scores = self.action_buffer.iter().map(|action| {
-            // If this action results in attacking an enemy, then this score is zero.
-            let score: u8 = state.pieces[1]
+        let action_scores = self.action_buffer.iter().map(|Action { from, to }| {
+            let current_score = state.pieces[1]
                 .iter()
-                .map(|Piece { pos, .. }| pos.manhattan_distance(&action.to) as u8)
-                .min()
-                .unwrap();
-            score
+                .map(|Piece { pos, .. }| from.manhattan_distance(pos) as i8)
+                .sum::<i8>();
+
+            let new_score = state.pieces[1]
+                .iter()
+                .map(|Piece { pos, .. }| to.manhattan_distance(pos) as i8)
+                .sum::<i8>();
+
+            new_score - current_score
         });
 
-        self.score_buffer.extend(action_scores);
-
-        let best_score = self.score_buffer.iter().min().unwrap();
-
-        let best_scoring_actions = self
+        let mut scored_actions = self
             .action_buffer
             .iter()
-            .zip(&self.score_buffer)
-            .filter_map(|(a, s)| if s == best_score { Some(a) } else { None });
+            .zip(action_scores)
+            .collect::<Vec<_>>();
 
-        *reservoir_sample_one(&mut self.rng, best_scoring_actions).unwrap()
+        scored_actions.sort_by_key(|&(_, score)| score);
+
+        let best_score: i8 = scored_actions[0].1;
+        let end = scored_actions
+            .iter()
+            .position(|&(_, score)| score != best_score)
+            .unwrap_or(scored_actions.len());
+
+        *pick_randomly(&mut self.rng, &scored_actions[..end]).0
     }
 }

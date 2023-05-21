@@ -42,12 +42,13 @@ fn main() {
 
     let mut outcomes: Vec<Outcome> = Vec::new();
 
-    let round_count = 100_000;
+    let round_count = 1_000;
 
     for _ in 0..round_count {
+        /*
         let mut game_coordinator = if seeder.next_u64() & 1 == 0 {
             GameCoordinator::new(
-                Box::new(RandoBot::new(seeder.next_u64())),
+                Box::new(AgressoBot::new(seeder.next_u64())),
                 Box::new(AgressoBot::new(seeder.next_u64())),
                 5000,
             )
@@ -58,6 +59,13 @@ fn main() {
                 5000,
             )
         };
+        */
+
+        let mut game_coordinator = GameCoordinator::new(
+            Box::new(RandoBot::new(seeder.next_u64())),
+            Box::new(RandoBot::new(seeder.next_u64())),
+            5000,
+        );
 
         let outcome = game_coordinator.play().expect("");
         outcomes.push(outcome);
