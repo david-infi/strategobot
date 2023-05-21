@@ -1,6 +1,6 @@
 pub mod action;
-pub mod position;
 pub mod logic;
+pub mod position;
 pub mod rank;
 pub mod state;
 
@@ -22,4 +22,3 @@ const ALL_DIRECTIONS: [Direction; 4] = [
     Direction::Down,
     Direction::Left,
 ];
-

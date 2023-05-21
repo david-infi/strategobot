@@ -112,9 +112,7 @@ fn m128i_as_mut_slice_u8(x: &mut __m128i) -> &mut [u8] {
 #[cfg(all(target_arch = "x86_64", target_feature = "sse4.1"))]
 mod tests {
     use super::*;
-    use std::arch::x86_64::{
-        _mm_set_epi8, _mm_bslli_si128,
-    };
+    use std::arch::x86_64::{_mm_bslli_si128, _mm_set_epi8};
 
     #[rustfmt::skip]
     #[test]

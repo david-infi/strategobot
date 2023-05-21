@@ -1,8 +1,5 @@
-
-
 use crate::boardbitmap::BoardBitmap;
-use crate::game::{Piece, Rank, Direction, Position, Action, ALL_DIRECTIONS};
-
+use crate::game::{Action, Direction, Piece, Position, Rank, ALL_DIRECTIONS};
 
 pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
     use Rank::*;

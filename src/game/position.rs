@@ -74,4 +74,3 @@ impl From<PositionJson> for Position {
         Position { x: pos.x, y: pos.y }
     }
 }
-

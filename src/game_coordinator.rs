@@ -1,7 +1,7 @@
 use crate::{
     bot::{Bot, BotOrienter},
-    game::{Rank, Battle, Piece, State, Turn, validate_action},
     game::logic::{battle_casualties, has_a_possible_move},
+    game::{validate_action, Battle, Piece, Rank, State, Turn},
 };
 use anyhow::Result;
 

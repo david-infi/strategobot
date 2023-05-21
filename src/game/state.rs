@@ -1,10 +1,10 @@
-use crate::json_runner::{BattleResultJson, GameStateJson, TileJson};
-use crate::game::{Rank, Position, Action, logic::scout_max_steps};
 use crate::boardbitmap::BoardBitmap;
-use tinyvec::ArrayVec;
-use thiserror::Error;
+use crate::game::{logic::scout_max_steps, Action, Position, Rank};
+use crate::json_runner::{BattleResultJson, GameStateJson, TileJson};
 use std::fmt;
 use std::fmt::Display;
+use thiserror::Error;
+use tinyvec::ArrayVec;
 
 #[derive(Clone, Copy)]
 pub struct Piece {
@@ -203,56 +203,50 @@ impl State {
         self.turn_count += 1;
         self.current_player_id = (turn.player_id + 1) % 2
     }
-
 }
 
 pub fn validate_action(state: &State, action: &Action) -> Result<(), ActionError> {
     use ActionError::*;
 
-        let friend = state.pieces[state.current_player_id]
-            .iter()
-            .find(|p| p.pos == action.from);
+    let friend = state.pieces[state.current_player_id]
+        .iter()
+        .find(|p| p.pos == action.from);
 
-        let Some(friend) = friend else { return Err(NoFriendlyPieceOnFromPosition); };
+    let Some(friend) = friend else { return Err(NoFriendlyPieceOnFromPosition); };
 
-        let is_piece_moveable = friend.rank.is_moveable();
-        if !is_piece_moveable {
-            return Err(FriendlyPieceIsNotMoveable);
-        }
+    if !friend.rank.is_moveable() {
+        return Err(FriendlyPieceIsNotMoveable);
+    }
 
-        let is_destination_occupied_by_friend = !state.pieces[state.current_player_id]
-            .iter()
-            .any(|p| p.pos == action.to);
-        if !is_destination_occupied_by_friend {
-            return Err(ToPositionOccpuiedByFriend);
-        }
+    let is_destination_occupied_by_friend = !state.pieces[state.current_player_id]
+        .iter()
+        .any(|p| p.pos == action.to);
+    if !is_destination_occupied_by_friend {
+        return Err(ToPositionOccpuiedByFriend);
+    }
 
-        let is_destination_a_valid_map_position = action.to.is_valid_map_position();
-        if !is_destination_a_valid_map_position {
-            return Err(ToPositionIsAnInvalidMapPosition);
-        }
+    if !action.to.is_valid_map_position() {
+        return Err(ToPositionIsAnInvalidMapPosition);
+    }
 
-        let is_straight_line_movement =
-            action.from.x == action.to.x || action.from.y == action.to.y;
-        if !is_straight_line_movement {
-            return Err(MovementIsNotStraight);
-        }
+    if !(action.from.x == action.to.x || action.from.y == action.to.y) {
+        return Err(MovementIsNotStraight);
+    }
 
-        let is_valid_movement_distance = if friend.rank == Rank::Scout {
-            action.distance()
-                <= scout_max_steps(
-                    &action.from,
-                    &action.direction(),
-                    &state.bitmaps[state.current_player_id],
-                    &state.bitmaps[(state.current_player_id + 1) % 2],
-                )
-        } else {
-            action.distance() == 1
-        };
-        if !is_valid_movement_distance {
-            return Err(InvalidMovementDistance);
-        }
+    let is_valid_movement_distance = if friend.rank == Rank::Scout {
+        action.distance()
+            <= scout_max_steps(
+                &action.from,
+                &action.direction(),
+                &state.bitmaps[state.current_player_id],
+                &state.bitmaps[(state.current_player_id + 1) % 2],
+            )
+    } else {
+        action.distance() == 1
+    };
+    if !is_valid_movement_distance {
+        return Err(InvalidMovementDistance);
+    }
 
-        Ok(())
+    Ok(())
 }
-

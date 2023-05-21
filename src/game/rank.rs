@@ -34,20 +34,6 @@ impl Rank {
     pub fn is_moveable(&self) -> bool {
         !matches!(&self, Rank::Flag | Rank::Bomb)
     }
-
-    pub fn as_str(&self) -> &'static str {
-        use Rank::*;
-        match &self {
-            Spy => "Spy",
-            Scout => "Scout",
-            Miner => "Miner",
-            General => "General",
-            Marshal => "Marshal",
-            Bomb => "Bomb",
-            Flag => "Flag",
-            _ => panic!(),
-        }
-    }
 }
 
 impl TryFrom<&str> for Rank {

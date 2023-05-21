@@ -1,8 +1,8 @@
 mod boardbitmap;
 mod bot;
-mod json_runner;
 mod game;
 mod game_coordinator;
+mod json_runner;
 mod reservoir_sample;
 
 use bot::{AgressoBot, RandoBot};
@@ -15,12 +15,6 @@ use rand_xoshiro::SplitMix64;
 use std::time::Instant;
 
 fn main() {
-    let mut seeder = SplitMix64::seed_from_u64(154989864);
-    let bot = Box::new(AgressoBot::new(seeder.next_u64()));
-    run_bot(bot).expect("");
-}
-
-fn main3() {
     let start_time = Instant::now();
 
     let mut seeder = SplitMix64::seed_from_u64(54989864);
@@ -50,7 +44,7 @@ fn main3() {
 
     let mut outcomes: Vec<Outcome> = Vec::new();
 
-    let round_count = 100_000;
+    let round_count = 10_000;
 
     for _ in 0..round_count {
         let mut game_coordinator = if seeder.next_u64() & 1 == 0 {
@@ -96,4 +90,10 @@ fn main3() {
     let run_time = start_time.elapsed();
 
     println!("{} seconds", run_time.as_secs_f32());
+
+    /*
+    let mut seeder = SplitMix64::seed_from_u64(154989864);
+    let bot = Box::new(AgressoBot::new(seeder.next_u64()));
+    run_bot(bot).expect("");
+    */
 }

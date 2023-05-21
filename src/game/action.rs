@@ -38,4 +38,3 @@ impl From<MoveCommandJson> for Action {
         }
     }
 }
-

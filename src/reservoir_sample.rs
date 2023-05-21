@@ -27,7 +27,10 @@ pub fn reservoir_sample<T, I: Iterator<Item = T>, R: Rng>(
     samples
 }
 
-pub fn reservoir_sample_one<T, I: Iterator<Item = T>, R: Rng>(rng: &mut R, mut source: I) -> Option<T> {
+pub fn reservoir_sample_one<T, I: Iterator<Item = T>, R: Rng>(
+    rng: &mut R,
+    mut source: I,
+) -> Option<T> {
     let mut chosen = source.next()?;
 
     let mut i = 2;
@@ -41,4 +44,3 @@ pub fn reservoir_sample_one<T, I: Iterator<Item = T>, R: Rng>(rng: &mut R, mut s
 
     Some(chosen)
 }
-

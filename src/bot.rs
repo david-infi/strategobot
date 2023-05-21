@@ -1,6 +1,6 @@
-
 use crate::game::{
-    logic::{all_possible_moves}, Piece, State, Action, Position, Rank, STARTING_RANKS};
+    logic::all_possible_moves, Action, Piece, Position, Rank, State, STARTING_RANKS,
+};
 use crate::reservoir_sample::{reservoir_sample, reservoir_sample_one};
 
 use rand::{Rng, SeedableRng};
