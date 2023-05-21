@@ -6,10 +6,8 @@ mod json_runner;
 mod reservoir_sample;
 
 use bot::{AgressoBot, RandoBot};
-
 use game_coordinator::{GameCoordinator, Outcome};
 use json_runner::run_bot;
-
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::SplitMix64;
 use std::time::Instant;
@@ -44,7 +42,7 @@ fn main() {
 
     let mut outcomes: Vec<Outcome> = Vec::new();
 
-    let round_count = 10_000;
+    let round_count = 100_000;
 
     for _ in 0..round_count {
         let mut game_coordinator = if seeder.next_u64() & 1 == 0 {

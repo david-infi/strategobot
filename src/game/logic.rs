@@ -1,5 +1,5 @@
 use crate::boardbitmap::BoardBitmap;
-use crate::game::{Action, Direction, Piece, Position, Rank, ALL_DIRECTIONS};
+use crate::game::{Action, Direction, Piece, Position, Rank, ALL_DIRECTION_STEPPERS};
 
 pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
     use Rank::*;
@@ -16,10 +16,36 @@ pub fn battle_casualties(defender: &Rank, attacker: &Rank) -> (bool, bool) {
     }
 }
 
+pub fn scout_max_steps_with_stepper<F: Fn(&Position) -> Position>(
+    stepper: F,
+    pos: &Position,
+    friend_bitmap: &BoardBitmap,
+    enemy_bitmap: &BoardBitmap,
+) -> usize {
+    let mut steps = 0;
+    let mut to = stepper(pos);
+
+    while to.is_valid_map_position() {
+        if friend_bitmap.get(to.to_bit_index()) {
+            break;
+        }
+
+        steps += 1;
+
+        if enemy_bitmap.get(to.to_bit_index()) {
+            break;
+        }
+
+        to = stepper(&to);
+    }
+
+    steps
+}
+
 pub fn scout_max_steps(
     pos: &Position,
     direction: &Direction,
-    piece_bitmap: &BoardBitmap,
+    friend_bitmap: &BoardBitmap,
     enemy_bitmap: &BoardBitmap,
 ) -> usize {
     use Direction::*;
@@ -35,7 +61,7 @@ pub fn scout_max_steps(
     let mut to = f(pos);
 
     while to.is_valid_map_position() {
-        if piece_bitmap.get(to.to_bit_index()) {
+        if friend_bitmap.get(to.to_bit_index()) {
             break;
         }
 
@@ -62,8 +88,8 @@ pub fn has_a_possible_move(
         }
 
         if *rank == Rank::Scout {
-            for dir in ALL_DIRECTIONS {
-                let steps = scout_max_steps(pos, &dir, friend_bitmap, enemy_bitmap);
+            for stepper in ALL_DIRECTION_STEPPERS {
+                let steps = scout_max_steps_with_stepper(stepper, pos, friend_bitmap, enemy_bitmap);
                 if steps > 0 {
                     return true;
                 }
@@ -96,21 +122,12 @@ pub fn all_possible_moves(
         }
 
         if *rank == Rank::Scout {
-            for dir in ALL_DIRECTIONS {
-                use Direction::*;
-
-                let steps = scout_max_steps(pos, &dir, friend_bitmap, enemy_bitmap);
-
-                let f = match dir {
-                    Up => Position::up,
-                    Right => Position::right,
-                    Down => Position::down,
-                    Left => Position::left,
-                };
+            for stepper in ALL_DIRECTION_STEPPERS {
+                let steps = scout_max_steps_with_stepper(stepper, pos, friend_bitmap, enemy_bitmap);
 
                 let mut to = *pos;
                 for _ in 0..steps {
-                    to = f(&to);
+                    to = stepper(&to);
                     actions.push(Action { from: *pos, to });
                 }
             }
