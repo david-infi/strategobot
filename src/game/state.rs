@@ -72,8 +72,10 @@ impl From<GameStateJson> for Turn {
     fn from(state: GameStateJson) -> Turn {
         let Some(last_move) = state.last_move else { panic!() };
 
+        let last_player_id = (state.active_player + 1) % 2;
+
         Turn {
-            player_id: state.active_player,
+            player_id: last_player_id,
             action: last_move.into(),
             battle: state.battle_result.map(|x| x.into()),
         }
@@ -134,11 +136,17 @@ impl State {
         } in &state.board
         {
             if let Some(id) = owner {
+                let rank = rank
+                    .as_ref()
+                    .map(|s| Rank::try_from(s.as_str()).ok())
+                    .flatten()
+                    .unwrap_or(Rank::Unknown);
+
                 res.pieces[*id].push(Piece {
                     pos: (*coordinate).into(),
-                    rank: rank.unwrap_or(Rank::Unknown),
+                    rank,
                     has_moved: false,
-                    is_revealed: rank.is_some(),
+                    is_revealed: rank != Rank::Unknown,
                 });
             }
         }

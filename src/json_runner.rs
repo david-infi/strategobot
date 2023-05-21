@@ -59,7 +59,7 @@ pub struct BattleResultJson {
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct TileJson {
-    pub rank: Option<Rank>,
+    pub rank: Option<String>,
     pub owner: Option<usize>,
     pub is_water: bool,
     pub coordinate: PositionJson,
@@ -134,8 +134,6 @@ pub fn run_bot(bot: Box<dyn Bot>) -> Result<()> {
     loop {
         if state.current_player_id == player_id {
             write_json(MoveCommandJson::from(bot.get_action(state)))?;
-        } else {
-            state.update_with_turn(&read_json::<GameStateJson>()?.into());
         }
 
         state.update_with_turn(&read_json::<GameStateJson>()?.into());

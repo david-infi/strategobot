@@ -1,16 +1,20 @@
 use strategobot::{
-    bot::RandoBot,
+    bot::{AgressoBot, RandoBot},
     game_coordinator::{GameCoordinator, Outcome},
     json_runner::run_bot,
 };
 
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::SplitMix64;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 fn main() {
-    let mut seeder = SplitMix64::seed_from_u64(123456789);
-    let bot = Box::new(RandoBot::new(seeder.next_u64()));
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Now is later then epoch")
+        .as_secs();
+    let mut seeder = SplitMix64::seed_from_u64(seed);
+    let bot = Box::new(AgressoBot::new(seeder.next_u64()));
     run_bot(bot).expect("Communication should work");
 }
 
