@@ -1,21 +1,56 @@
-use crate::game::{all_possible_moves, Action, Position, Rank};
-use crate::game_coordinator::State;
-use crate::{reservoir_sample, reservoir_sample_one};
+use crate::boardbitmap::BoardBitmap;
+use crate::game::{
+    logic::{all_possible_moves, scout_max_steps}, Piece, State, Action, Position, Rank, STARTING_RANKS};
+use crate::reservoir_sample::{reservoir_sample, reservoir_sample_one};
+
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256StarStar;
 
-pub trait Bot {
-    fn get_initial_placement(&mut self, starting_ranks: &[Rank]) -> Vec<(Rank, Position)>;
-    fn get_action(&mut self, state: &State) -> Action;
+pub struct BotOrienter {
+    player_id: usize,
+    bot: Box<dyn Bot>,
+}
 
-    fn notify_opponents_initial_placement(
-        &mut self,
-        _starting_ranks: &[Rank],
-        _enemies: &[Position],
-    ) {
+impl BotOrienter {
+    pub fn new(bot: Box<dyn Bot>, player_id: usize) -> Self {
+        BotOrienter { player_id, bot }
+    }
+}
+
+impl Bot for BotOrienter {
+    fn get_initial_placements(&mut self) -> Vec<(Rank, Position)> {
+        let placements = self.bot.get_initial_placements();
+
+        if self.player_id == 1 {
+            return placements
+                .into_iter()
+                .map(|(rank, pos)| (rank, pos.reversed()))
+                .collect();
+        }
+
+        placements
     }
 
-    fn notify_opponents_action(&mut self, _state_after_action: &State, _action: Action) {}
+    fn get_action(&mut self, state: State) -> Action {
+        let state = if self.player_id == 1 {
+            state.reversed()
+        } else {
+            state
+        };
+
+        let action = self.bot.get_action(state);
+
+        if self.player_id == 1 {
+            action.reversed()
+        } else {
+            action
+        }
+    }
+}
+
+pub trait Bot {
+    fn get_initial_placements(&mut self) -> Vec<(Rank, Position)>;
+    fn get_action(&mut self, state: State) -> Action;
 }
 
 fn random_placement<R: Rng>(rng: &mut R, ranks: &[Rank]) -> Vec<(Rank, Position)> {
@@ -30,13 +65,13 @@ fn random_placement<R: Rng>(rng: &mut R, ranks: &[Rank]) -> Vec<(Rank, Position)
         .collect::<Vec<_>>()
 }
 
-fn random_action<R: Rng>(rng: &mut R, state: &State, action_buffer: &mut Vec<Action>) -> Action {
+fn random_action<R: Rng>(rng: &mut R, state: State, action_buffer: &mut Vec<Action>) -> Action {
     action_buffer.clear();
 
     all_possible_moves(
-        state.pieces,
-        state.piece_bitmap,
-        state.enemy_bitmap,
+        &state.pieces[0],
+        &state.bitmaps[0],
+        &state.bitmaps[1],
         action_buffer,
     );
 
@@ -60,11 +95,11 @@ impl RandoBot {
 }
 
 impl Bot for RandoBot {
-    fn get_initial_placement(&mut self, starting_ranks: &[Rank]) -> Vec<(Rank, Position)> {
-        random_placement(&mut self.rng, starting_ranks)
+    fn get_initial_placements(&mut self) -> Vec<(Rank, Position)> {
+        random_placement(&mut self.rng, &STARTING_RANKS)
     }
 
-    fn get_action(&mut self, state: &State) -> Action {
+    fn get_action(&mut self, state: State) -> Action {
         // There is guaranteed to be at least one possible move, because the game coordinator
         // checks for the existence of one before it requests an action.
 
@@ -89,27 +124,26 @@ impl AgressoBot {
 }
 
 impl Bot for AgressoBot {
-    fn get_initial_placement(&mut self, starting_ranks: &[Rank]) -> Vec<(Rank, Position)> {
-        random_placement(&mut self.rng, starting_ranks)
+    fn get_initial_placements(&mut self) -> Vec<(Rank, Position)> {
+        random_placement(&mut self.rng, &STARTING_RANKS)
     }
 
-    fn get_action(&mut self, state: &State) -> Action {
+    fn get_action(&mut self, state: State) -> Action {
         self.action_buffer.clear();
         self.score_buffer.clear();
 
         all_possible_moves(
-            state.pieces,
-            state.piece_bitmap,
-            state.enemy_bitmap,
+            &state.pieces[0],
+            &state.bitmaps[0],
+            &state.bitmaps[1],
             &mut self.action_buffer,
         );
 
         let action_scores = self.action_buffer.iter().map(|action| {
             // If this action results in attacking an enemy, then this score is zero.
-            let score: u8 = state
-                .enemies
+            let score: u8 = state.pieces[1]
                 .iter()
-                .map(|(p, _)| p.manhattan_distance(&action.to) as u8)
+                .map(|Piece { pos, .. }| pos.manhattan_distance(&action.to) as u8)
                 .min()
                 .unwrap();
             score

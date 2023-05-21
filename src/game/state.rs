@@ -1,0 +1,248 @@
+use crate::json_runner::{BattleResultJson, GameStateJson, TileJson};
+use crate::game::{Rank, Position, Action, logic::scout_max_steps};
+use crate::boardbitmap::BoardBitmap;
+use tinyvec::ArrayVec;
+
+#[derive(Clone, Copy)]
+pub struct Piece {
+    pub pos: Position,
+    pub rank: Rank,
+    pub has_moved: bool,
+    pub is_revealed: bool,
+}
+
+impl Default for Piece {
+    fn default() -> Self {
+        Piece {
+            pos: Position { x: 0, y: 0 },
+            rank: Rank::Unknown,
+            has_moved: false,
+            is_revealed: false,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ActionError {
+    NoFriendlyPieceOnFromPosition,
+    FriendlyPieceIsNotMoveable,
+    ToPositionOccpuiedByFriend,
+    ToPositionIsAnInvalidMapPosition,
+    MovementIsNotStraight,
+    InvalidMovementDistance,
+}
+
+pub struct Battle {
+    pub ranks: [Rank; 2],
+    pub has_died: [bool; 2],
+}
+
+impl From<BattleResultJson> for Battle {
+    fn from(battle: BattleResultJson) -> Battle {
+        let mut ranks = [battle.attacker.rank, battle.defender.rank];
+        ranks.as_mut_slice().swap(0, battle.attacker.player);
+
+        let has_died = match battle.winner {
+            None => [true, true],
+            Some(0) => [false, true],
+            Some(1) => [true, false],
+            _ => unreachable!(),
+        };
+
+        Battle { ranks, has_died }
+    }
+}
+
+pub struct Turn {
+    pub player_id: usize,
+    pub action: Action,
+    pub battle: Option<Battle>,
+}
+
+impl From<GameStateJson> for Turn {
+    fn from(state: GameStateJson) -> Turn {
+        let Some(last_move) = state.last_move else { panic!() };
+
+        Turn {
+            player_id: state.active_player,
+            action: last_move.into(),
+            battle: state.battle_result.map(|x| x.into()),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct State {
+    pub current_player_id: usize,
+    pub turn_count: usize,
+
+    pub pieces: [ArrayVec<[Piece; 8]>; 2],
+    pub bitmaps: [BoardBitmap; 2],
+}
+
+impl State {
+    pub fn new_with_placements(placements: &[&[(Rank, Position)]; 2]) -> State {
+        let pieces: [ArrayVec<_>; 2] = placements.map(|ps| {
+            ps.iter()
+                .map(|&(rank, pos)| Piece {
+                    pos,
+                    rank,
+                    has_moved: false,
+                    is_revealed: false,
+                })
+                .collect()
+        });
+
+        let mut bitmaps = [BoardBitmap::new(); 2];
+
+        for (i, pieces) in pieces.iter().enumerate() {
+            for Piece { pos, .. } in pieces.iter() {
+                bitmaps[i].set(pos.to_bit_index(), true);
+            }
+        }
+
+        State {
+            current_player_id: 0,
+            turn_count: 0,
+            pieces,
+            bitmaps,
+        }
+    }
+
+    pub fn new_from_json_state(state: &GameStateJson) -> State {
+        let mut res = State {
+            current_player_id: 0,
+            turn_count: 0,
+            pieces: [ArrayVec::new(), ArrayVec::new()],
+            bitmaps: [BoardBitmap::new(); 2],
+        };
+
+        for TileJson {
+            rank,
+            owner,
+            coordinate,
+            ..
+        } in &state.board
+        {
+            if let Some(id) = owner {
+                res.pieces[*id].push(Piece {
+                    pos: (*coordinate).into(),
+                    rank: rank.unwrap_or(Rank::Unknown),
+                    has_moved: false,
+                    is_revealed: rank.is_some(),
+                });
+            }
+        }
+
+        for (i, pieces) in res.pieces.iter().enumerate() {
+            for Piece { pos, .. } in pieces.iter() {
+                res.bitmaps[i].set(pos.to_bit_index(), true);
+            }
+        }
+
+        res
+    }
+
+    pub fn reversed(&self) -> State {
+        State {
+            current_player_id: self.current_player_id,
+            turn_count: self.turn_count,
+            pieces: [1, 0].map(|id| {
+                self.pieces[id]
+                    .into_iter()
+                    .map(|piece @ Piece { pos, .. }| Piece {
+                        pos: pos.reversed(),
+                        ..piece
+                    })
+                    .collect()
+            }),
+            bitmaps: [1, 0].map(|id| self.bitmaps[id].reversed()),
+        }
+    }
+
+    pub fn update_with_turn(&mut self, turn: &Turn) {
+        let id = turn.player_id;
+
+        self.bitmaps[id].set(turn.action.from.to_bit_index(), false);
+        self.bitmaps[id].set(turn.action.to.to_bit_index(), true);
+
+        let mut piece = self.pieces[id]
+            .iter_mut()
+            .find(|Piece { pos, .. }| *pos == turn.action.from)
+            .unwrap();
+
+        piece.pos = turn.action.to;
+        piece.has_moved = true;
+
+        if let Some(Battle { has_died, .. }) = turn.battle {
+            for id in [0, 1] {
+                let idx = self.pieces[id]
+                    .iter()
+                    .position(|Piece { pos, .. }| *pos == turn.action.to)
+                    .unwrap();
+
+                self.pieces[id][idx].is_revealed = true;
+
+                self.bitmaps[id].set(turn.action.to.to_bit_index(), !has_died[id]);
+
+                if has_died[id] {
+                    self.pieces[id].swap_remove(idx);
+                }
+            }
+        }
+
+        self.turn_count += 1;
+        self.current_player_id = (turn.player_id + 1) % 2
+    }
+
+    pub fn find_action_error(&self, action: &Action) -> Option<ActionError> {
+        use ActionError::*;
+
+        let friend = self.pieces[self.current_player_id]
+            .iter()
+            .find(|p| p.pos == action.from);
+
+        let Some(friend) = friend else { return Some(NoFriendlyPieceOnFromPosition); };
+
+        let is_piece_moveable = friend.rank.is_moveable();
+        if !is_piece_moveable {
+            return Some(FriendlyPieceIsNotMoveable);
+        }
+
+        let is_destination_occupied_by_friend = !self.pieces[self.current_player_id]
+            .iter()
+            .any(|p| p.pos == action.to);
+        if !is_destination_occupied_by_friend {
+            return Some(ToPositionOccpuiedByFriend);
+        }
+
+        let is_destination_a_valid_map_position = action.to.is_valid_map_position();
+        if !is_destination_a_valid_map_position {
+            return Some(ToPositionIsAnInvalidMapPosition);
+        }
+
+        let is_straight_line_movement =
+            action.from.x == action.to.x || action.from.y == action.to.y;
+        if !is_straight_line_movement {
+            return Some(MovementIsNotStraight);
+        }
+
+        let is_valid_movement_distance = if friend.rank == Rank::Scout {
+            action.distance()
+                <= scout_max_steps(
+                    &action.from,
+                    &action.direction(),
+                    &self.bitmaps[self.current_player_id],
+                    &self.bitmaps[(self.current_player_id + 1) % 2],
+                )
+        } else {
+            action.distance() == 1
+        };
+        if !is_valid_movement_distance {
+            return Some(InvalidMovementDistance);
+        }
+
+        None
+    }
+}
+
